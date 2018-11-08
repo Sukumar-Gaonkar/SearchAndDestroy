@@ -3,41 +3,38 @@ import numpy as np
 import pandas as pd
 
 
-class Game:
+class GameMaster:
+
+    def __init__(self, dimen):
+        self.game_map = self.genMap(dimen)
+        self.target = self.create_random_target()
 
     def genMap(self, dimen):
-        map = [['0' for i in range(dimen)] for i in range(dimen)]
+        gamemap = [[0 for i in range(dimen)] for i in range(dimen)]
 
         for i in range(dimen):
             for j in range(dimen):
-
                 num = random.random()
                 if num <= 0.2:
-                    map[i][j] = 0  # flat terrain less than 0.2
+                    gamemap[i][j] = 0  # flat terrain less than 0.2
                 elif num > 0.2 and num <= 0.5:
-                    map[i][j] = 1  # hilly terrain between 0.2 and 0.5
+                    gamemap[i][j] = 1  # hilly terrain between 0.2 and 0.5
                 elif num > 0.5 and num <= 0.8:
-                    map[i][j] = 2  # forested terrain betwwen 0.5 and 0.8
+                    gamemap[i][j] = 2  # forested terrain betwwen 0.5 and 0.8
                 elif num > 0.8 and num <= 1:
-                    map[i][j] = 3  # caves terrain graeter than 0.8
-        return map
+                    gamemap[i][j] = 3  # caves terrain graeter than 0.8
+        return gamemap
 
-    def create_random_target(self, dimen):
-        x = np.random.randint(0, dimen)
-        y = np.random.randint(0, dimen)
-        return tuple(x, y)
+    def create_random_target(self):
+        x = np.random.randint(0, len(self.game_map))
+        y = np.random.randint(0, len(self.game_map))
+        return (x, y)
 
-        return map
+    def search_cell(self, user_target):
 
-    def create_belief_matrix(self, dimen):
-        belief = [[1 / (dimen * dimen) for j in range(dimen)] for i in range(dimen)]
-        return belief
-
-    def game_master(self, dimen, map, user_target, target):
-
-        if target == y:
+        if self.target == user_target:
             num1 = random.random()
-            terrain_type = map[target[0]][target[1]]
+            terrain_type = self.game_map[self.target[0]][self.target[1]]
             if terrain_type == 0:
                 if num1 <= 0.1:
                     return False
@@ -61,47 +58,86 @@ class Game:
         else:
             return False
 
-    def update_belief_matrix(self, dimen, map, user_cell, belief):
-        if map[user_cell[0]][user_cell[1]] == '0':
+    def printMap(self):
+        print(np.matrix(self.game_map))
+
+
+class DummyPlayer:
+
+    def __init__(self, map):
+        self.map = map
+        self.dimen = len(map)
+        self.belief = self.create_belief_matrix(self.dimen)
+
+    def create_belief_matrix(self, dimen):
+        belief = [[1 / (dimen * dimen) for j in range(dimen)] for i in range(dimen)]
+        return belief
+
+    def printBelief(self):
+        print(np.matrix(self.belief))
+
+    def update_belief_matrix(self, user_cell):
+        if self.map[user_cell[0]][user_cell[1]] == 0:
             fnr = 0.1
-        elif map[user_cell[0]][user_cell[1]] == '1':
+        elif self.map[user_cell[0]][user_cell[1]] == 1:
             fnr = 0.3
-        elif map[user_cell[0]][user_cell[1]] == '2':
+        elif self.map[user_cell[0]][user_cell[1]] == 2:
             fnr = 0.7
-        elif map[user_cell[0]][user_cell[1]] == '3':
+        elif self.map[user_cell[0]][user_cell[1]] == 3:
             fnr = 0.9
-        belief[user_cell[0]][user_cell[1]] *= fnr
+        self.belief[user_cell[0]][user_cell[1]] *= fnr
         scaling_fac = 0
         sum = 0
-        for i in range(dimen):
-            for j in range(dimen):
-                sum += belief[i][j]
-        scaling_fac = 1 / sum
-        for i in range(dimen):
-            for j in range(dimen):
-                belief[i][j] *= scaling_fac
-        self.printMap(10, belief)
-        self.dummy_player(dimen, map, user_cell, belief)
+        for i in range(self.dimen):
+            for j in range(self.dimen):
+                sum += self.belief[i][j]
+        sum -= self.belief[user_cell[0]][user_cell[1]]
+        scaling_fac = (1 - fnr) * self.belief[user_cell[0]][user_cell[1]] / sum
 
-    def dummy_player(self, dimen, map, target, belief):
+        for i in range(self.dimen):
+            for j in range(self.dimen):
+                if (i, j) != user_cell:
+                    self.belief[i][j] *= scaling_fac
+        # self.printMap(10, self.belief)
+        # self.dummy_player(self.dimen, self.map, user_cell, self.belief)
 
-        y = max(map(max, belief))
-        for i in range(dimen):
-            for j in range(dimen):
-                if map[i][j] == y:
-                    user_cell = tuple(i, j)
-        xyz = self.game_master(dimen, map, target, user_cell)
+    def next_move(self):
 
-        if xyz is True:
-            print("you win")
-            exit()
-        else:
-            self.update_belief_matrix(dimen, map, user_cell, belief)
+        y = max(map(max, self.belief))
 
-    def printMap(self, dim, map):
-        print(np.matrix(map))
+        for i in range(self.dimen):
+            for j in range(self.dimen):
+                if self.belief[i][j] == y:
+                    user_cell = (i, j)
+
+        return user_cell
+        # xyz = self.game_master(self.dimen, map, target, user_cell)
+        #
+        #
+        # if xyz is True:
+        #     print("you win")
+        #     exit()
+        # else:
+        #     self.update_belief_matrix(dimen, map, user_cell, belief)
 
 
+if __name__ == "__main__":
+    dimen = 10
+    game_master = GameMaster(dimen)
+    dummy_player = DummyPlayer(game_master.game_map)
+    game_won = False
+
+    i = 0
+
+    while not game_won:
+        i += 1
+        user_cell = dummy_player.next_move()
+        game_won = game_master.search_cell(user_cell)
+        dummy_player.update_belief_matrix(user_cell)
+        print("\nMove : {}\n".format(i))
+        dummy_player.printBelief()
+
+    print("Kudos you Won!!!")
 # x=Game()
 # map=x.genMap(10,(x.genMap(10),10))
 # target = x.create_random_target(dimen)
