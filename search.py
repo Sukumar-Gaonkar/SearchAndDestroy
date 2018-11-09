@@ -1,6 +1,5 @@
 import random
 import numpy as np
-import pandas as pd
 
 
 class GameMaster:
@@ -85,19 +84,15 @@ class DummyPlayer:
             fnr = 0.7
         elif self.map[user_cell[0]][user_cell[1]] == 3:
             fnr = 0.9
-        self.belief[user_cell[0]][user_cell[1]] *= fnr
-        scaling_fac = 0
-        sum = 0
-        for i in range(self.dimen):
-            for j in range(self.dimen):
-                sum += self.belief[i][j]
-        sum -= self.belief[user_cell[0]][user_cell[1]]
+
+        sum = 1 - self.belief[user_cell[0]][user_cell[1]]
         scaling_fac = (1 - fnr) * self.belief[user_cell[0]][user_cell[1]] / sum
+        self.belief[user_cell[0]][user_cell[1]] *= fnr
 
         for i in range(self.dimen):
             for j in range(self.dimen):
                 if (i, j) != user_cell:
-                    self.belief[i][j] *= scaling_fac
+                    self.belief[i][j] *= (1 + scaling_fac)
         # self.printMap(10, self.belief)
         # self.dummy_player(self.dimen, self.map, user_cell, self.belief)
 
@@ -111,21 +106,15 @@ class DummyPlayer:
                     user_cell = (i, j)
 
         return user_cell
-        # xyz = self.game_master(self.dimen, map, target, user_cell)
-        #
-        #
-        # if xyz is True:
-        #     print("you win")
-        #     exit()
-        # else:
-        #     self.update_belief_matrix(dimen, map, user_cell, belief)
 
 
 if __name__ == "__main__":
-    dimen = 10
+    dimen = 5
     game_master = GameMaster(dimen)
     dummy_player = DummyPlayer(game_master.game_map)
     game_won = False
+
+    dummy_player.printBelief()
 
     i = 0
 
@@ -134,12 +123,7 @@ if __name__ == "__main__":
         user_cell = dummy_player.next_move()
         game_won = game_master.search_cell(user_cell)
         dummy_player.update_belief_matrix(user_cell)
-        print("\nMove : {}\n".format(i))
+        print("\nMove - {}: {},{} \n".format(i,user_cell[0],user_cell[1]))
         dummy_player.printBelief()
 
     print("Kudos you Won!!!")
-# x=Game()
-# map=x.genMap(10,(x.genMap(10),10))
-# target = x.create_random_target(dimen)
-#print("target")
-# x.dummy_player(10,map,target,x.create_belief_matrix(10))
