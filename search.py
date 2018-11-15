@@ -1,4 +1,5 @@
 import random
+import time
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
@@ -27,8 +28,11 @@ class GameMaster:
         return gamemap
 
     def create_random_target(self):
-        x = np.random.randint(0, len(self.game_map))
-        y = np.random.randint(0, len(self.game_map))
+        while True:
+            x = np.random.randint(0, len(self.game_map))
+            y = np.random.randint(0, len(self.game_map))
+            if self.game_map[x][y] == 0:
+                break
         return (x, y)
 
     def search_cell(self, user_target):
@@ -68,6 +72,7 @@ class DummyPlayer:
     def __init__(self, map):
         self.map = map
         self.dimen = len(map)
+        self.hit_freq = [[0 for j in range(self.dimen)] for i in range(self.dimen)]
         self.belief = self.create_belief_matrix(self.dimen)
 
         self.marker = 5
@@ -76,8 +81,8 @@ class DummyPlayer:
 
         plt.ion()
         self.fig = plt.figure(figsize=(10, 6))
-        self.ax = plt.subplot(1, 2, 1)
-        self.belief_plot = self.ax.matshow(self.belief, cmap='Greys')
+        # self.ax = plt.subplot(1, 3, 1)
+        self.belief_plot = plt.subplot(1, 3, 1).matshow(self.belief, cmap='Greys')
         plt.colorbar(self.belief_plot)
 
         cdict1 = {'red': ((0.0, 1.0, 1.0),
@@ -86,14 +91,12 @@ class DummyPlayer:
                           (0.6, 0.4, 0.4),
                           (0.8, 0.2, 0.2),
                           (1, 0, 0)),
-
                   'green': ((0.0, 1.0, 1.0),
                             (0.2, 0.8, 0.8),
                             (0.4, 0.6, 0.6),
                             (0.6, 0.4, 0.4),
                             (0.8, 0.2, 0.2),
                             (1, 0, 0)),
-
                   'blue': ((0.0, 1.0, 1.0),
                            (0.2, 0.8, 0.8),
                            (0.4, 0.6, 0.6),
@@ -109,7 +112,16 @@ class DummyPlayer:
         # map[3][3] += 5
         cm = LinearSegmentedColormap('BlueRed1', cdict1)
         # cm = matplotlib.colors.ListedColormap(terrain_colors)
-        self.terrain_plot = self.fig.add_subplot(1, 2, 2).matshow(map, cmap=cm)
+        self.terrain_plot = self.fig.add_subplot(1, 3, 2).matshow(map, cmap=cm)
+
+        self.freq_ax = self.fig.add_subplot(1, 3, 3)
+        self.freq_plot = self.freq_ax.matshow(self.hit_freq)
+
+        self.hit_freq_texts = [[None for i in range(self.dimen)] for i in range(self.dimen)]
+
+        for (i, j), z in np.ndenumerate(self.hit_freq):
+            self.hit_freq_texts[i][j] = self.freq_ax.text(j, i, '{}'.format(z), ha='center', va='center')
+
         plt.show()
 
 
@@ -140,13 +152,14 @@ class DummyPlayer:
             fnr = 0.9
 
         sum = 1 - (1 - fnr) * self.belief[user_cell[0]][user_cell[1]]
-        scaling_fac = (1 - fnr) * self.belief[user_cell[0]][user_cell[1]] / sum
+        # scaling_fac = (1 - fnr) * self.belief[user_cell[0]][user_cell[1]] / sum
         self.belief[user_cell[0]][user_cell[1]] *= fnr
 
+
+        # Renormalize the Grid
         for i in range(self.dimen):
             for j in range(self.dimen):
-                if (i, j) != user_cell:
-                    self.belief[i][j] *= (1 + scaling_fac)
+                    self.belief[i][j] /= sum
 
     def next_move(self):
 
@@ -162,18 +175,26 @@ class DummyPlayer:
 
         self.prev_cell = user_cell
         self.map[user_cell[0]][user_cell[1]] += self.marker
+
+        self.hit_freq[user_cell[0]][user_cell[1]] += 1
+        hit_count = self.hit_freq[user_cell[0]][user_cell[1]]
+        # self.freq_ax.text(user_cell[0], user_cell[1], '{}'.format(hit_count), ha='center', va='center')
+        self.hit_freq_texts[user_cell[0]][user_cell[1]].set_text(str(hit_count))
         return user_cell
 
 
 if __name__ == "__main__":
-    dimen = 5
+    dimen = 3
     game_master = GameMaster(dimen)
     dummy_player = DummyPlayer(game_master.game_map)
     game_won = False
 
+    game_master.printMap()
     dummy_player.printBelief()
 
-    print("Dimen: {}  Target: {},{}".format(dimen, game_master.target[0], game_master.target[1]))
+    terrains = ["Plains", "Hilly", "Forest", "Caves"]
+
+    print("Dimen: {}  Target: {},{} : {}".format(dimen, game_master.target[0], game_master.target[1], terrains[dummy_player.map[game_master.target[0]][game_master.target[1]]]))
 
     input("Press 'Y' Key to continue")      # just to stop the execution before entering while loop
     i = 0
@@ -187,9 +208,10 @@ if __name__ == "__main__":
         dummy_player.printBelief()
         dummy_player.terrain_plot.set_data(dummy_player.map)
         dummy_player.belief_plot.set_data(dummy_player.belief)
+        dummy_player.freq_plot.set_data(dummy_player.hit_freq)
         dummy_player.fig.canvas.draw()
         plt.pause(0.001)
-        # time.sleep(2)
+        # time.sleep(0.01)
 
     print("Kudos you Won!!!\n{} cells Searched".format(i))
     input()
