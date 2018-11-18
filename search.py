@@ -4,6 +4,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
+from collections import Counter
 
 class GameMaster:
 
@@ -69,12 +70,22 @@ class GameMaster:
 
 class DummyPlayer:
 
-    def __init__(self, map):
+    def __init__(self, map,rule,case):
         self.map = map
         self.dimen = len(map)
+        self.rule=rule
+        self.case=case
         self.hit_freq = [[0 for j in range(self.dimen)] for i in range(self.dimen)]
         self.belief = self.create_belief_matrix(self.dimen)
-
+        self.belief_2=self.create_belief_matrix_2(self.dimen)
+        self.plaincount=sum(x.count(0) for x in map)
+        self.hillcount=sum(x.count(1) for x in map)
+        self.forestcount=sum(x.count(2) for x in map)
+        self.cavecount=sum(x.count(3) for x in map)
+        self.arr1=[[0]*self.plaincount,[1]*self.hillcount,[2]*self.forestcount,[3]*self.cavecount]
+        self.arr=[item for sublist in self.arr1 for item in sublist]
+        self.k=0
+        self.sort_arr=[item for items, c in Counter(self.arr).most_common() for item in [items] * c]
         self.marker = 5
         map[0][0] += self.marker
         self.prev_cell = (0, 0)
@@ -131,9 +142,15 @@ class DummyPlayer:
     def create_belief_matrix(self, dimen):
         belief = [[1 / (dimen * dimen) for j in range(dimen)] for i in range(dimen)]
         return belief
-
+    def create_belief_matrix_2(self, dimen):
+        belief_2 = [[1 / (dimen * dimen) for j in range(dimen)] for i in range(dimen)]
+        return belief_2
+    
     def printBelief(self):
         print(np.matrix(self.belief))
+    def printBelief_2(self):
+        print(np.matrix(self.belief_2))
+        
 
     def update_belief_matrix(self, user_cell):
 
@@ -160,16 +177,48 @@ class DummyPlayer:
         for i in range(self.dimen):
             for j in range(self.dimen):
                     self.belief[i][j] /= sum
+                    self.belief_2[i][j] =(self.belief[i][j]/ sum)*(1-fnr)
+
+                    
 
     def next_move(self):
+        
+        if(self.case==1):
+            maxm=0
+            if(self.k>=self.dimen*self.dimen) :
+                self.k=0
+            for i in range(self.dimen):
+                for j in range(self.dimen):
+                 #   print(self.k)
+                    if self.map[i][j]==self.sort_arr[self.k]:
+                        if(self.rule==1):
+                            if self.belief[i][j]> maxm:
+                    
+                                maxm=self.belief[i][j]
+                                user_cell = (i, j)
+                        elif(self.rule==2):
+                            if self.belief_2[i][j]> maxm:
+                    
+                                maxm=self.belief_2[i][j]
+                                user_cell = (i, j)
+            self.k=self.k+1
+                                 
+        if(self.case==2):
+            if(self.rule==1):
+                y = max(map(max, self.belief))
+                for i in range(self.dimen):
+                    for j in range(self.dimen):
+                        if self.belief[i][j] == y:
+                            user_cell = (i, j)
+            elif(self.rule==2):
+                y = max(map(max, self.belief_2))
+                for i in range(self.dimen):
+                    for j in range(self.dimen):
+                        if self.belief_2[i][j] == y:
+                            user_cell = (i, j)
 
-        y = max(map(max, self.belief))
-
-        for i in range(self.dimen):
-            for j in range(self.dimen):
-                if self.belief[i][j] == y:
-                    user_cell = (i, j)
-
+            
+          
         if self.prev_cell is not None:
             self.map[self.prev_cell[0]][self.prev_cell[1]] -= self.marker
 
@@ -184,34 +233,39 @@ class DummyPlayer:
 
 
 if __name__ == "__main__":
-    dimen = 3
-    game_master = GameMaster(dimen)
-    dummy_player = DummyPlayer(game_master.game_map)
-    game_won = False
+    dimen = 5
+    fileName = "D:/results/profilerResults_" + time.strftime("%Y%m%d-%H%M%S") + ".csv"
+    f = open(fileName, "a", 1)
+    f.write("Gridsize;IterationNo;Case;Rule;Searches\n")
+     
+    for case in range(1,3):
+        for rule in range(1,3):
+            game_master = GameMaster(dimen) 
+            dummy_player = DummyPlayer(game_master.game_map,case,rule)    
+            game_won = False
+            game_master.printMap()
+            dummy_player.printBelief()
+            terrains = ["Plains", "Hilly", "Forest", "Caves"]
+            print(dummy_player.map[game_master.target[0]][game_master.target[1]])
+            print("Dimen: {}  Target: {},{} : {}".format(dimen, game_master.target[0], game_master.target[1], terrains[(dummy_player.map[game_master.target[0]][game_master.target[1]])%5]))
+          #  input("Press 'Y' Key to continue")      # just to stop the execution before entering while loop
+            i = 0
+    
+            while not game_won:
+                i += 1
+                user_cell = dummy_player.next_move()
+                game_won = game_master.search_cell(user_cell)
+                dummy_player.update_belief_matrix(user_cell)
+                print("\nMove - {}: {},{}\n".format(i,user_cell[0],user_cell[1]))
+                dummy_player.printBelief()
+                dummy_player.terrain_plot.set_data(dummy_player.map)
+                dummy_player.belief_plot.set_data(dummy_player.belief)
+                dummy_player.freq_plot.set_data(dummy_player.hit_freq)
+                dummy_player.fig.canvas.draw()
+                #plt.pause(0.001)
+                # time.sleep(0.01)
 
-    game_master.printMap()
-    dummy_player.printBelief()
+            print("Kudos you Won!!!\n{} cells Searched".format(i))
+            f.write("{0};{1};{2};{3};{4}\n".format( dimen, 1,case,rule,i))
+            #input()
 
-    terrains = ["Plains", "Hilly", "Forest", "Caves"]
-
-    print("Dimen: {}  Target: {},{} : {}".format(dimen, game_master.target[0], game_master.target[1], terrains[dummy_player.map[game_master.target[0]][game_master.target[1]]]))
-
-    input("Press 'Y' Key to continue")      # just to stop the execution before entering while loop
-    i = 0
-
-    while not game_won:
-        i += 1
-        user_cell = dummy_player.next_move()
-        game_won = game_master.search_cell(user_cell)
-        dummy_player.update_belief_matrix(user_cell)
-        print("\nMove - {}: {},{}\n".format(i,user_cell[0],user_cell[1]))
-        dummy_player.printBelief()
-        dummy_player.terrain_plot.set_data(dummy_player.map)
-        dummy_player.belief_plot.set_data(dummy_player.belief)
-        dummy_player.freq_plot.set_data(dummy_player.hit_freq)
-        dummy_player.fig.canvas.draw()
-        plt.pause(0.001)
-        # time.sleep(0.01)
-
-    print("Kudos you Won!!!\n{} cells Searched".format(i))
-    input()
