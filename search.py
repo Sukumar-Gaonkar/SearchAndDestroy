@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Nov 19 21:49:17 2018
+
+@author: Karra's
+"""
+
 import random
 import time, math
 from itertools import count
@@ -8,7 +15,7 @@ import numpy as np
 from collections import Counter
 
 case_str = ["", "Proportional Terrain Selection", "Unbiased Terrain Selection"]
-rule_str = ["", "Belief Matrix", "Confidence Matrix"]
+rule_str = ["", "Belief Matrix", "Confidence Matrix","Distance Belief","Distance Confidence"]
 
 
 class TerrainType(Enum):
@@ -114,14 +121,14 @@ class DummyPlayer:
         self.marker = 5
         game_map[0][0] += self.marker
         self.prev_cell = (0, 0)
-
+        '''
         plt.ion()
         self.fig = plt.figure(figsize=(10, 6))
         self.fig.suptitle("Iteration: {}  Case: {}  Rule: {}".format(iteration, case_str[case], rule_str[rule]))
         # self.ax = plt.subplot(1, 3, 1)
         self.belief_plot = plt.subplot(1, 3, 1).matshow(self.belief, cmap='Greys')
         plt.colorbar(self.belief_plot)
-
+        '''
         cdict1 = {'red': ((0.0, 1.0, 1.0),
                           (0.2, 0.8, 0.8),
                           (0.4, 0.6, 0.6),
@@ -141,19 +148,20 @@ class DummyPlayer:
                            (0.8, 0.2, 0.2),
                            (1, 0, 0))
                   }
-
+        '''
         cm = LinearSegmentedColormap('BlueRed1', cdict1)
         self.terrain_plot = self.fig.add_subplot(1, 3, 2).matshow(game_map, cmap=cm)
 
         self.freq_ax = self.fig.add_subplot(1, 3, 3)
         self.freq_plot = self.freq_ax.matshow(self.hit_freq)
-
+        
         self.hit_freq_texts = [[None for i in range(self.dimen)] for i in range(self.dimen)]
 
         for (i, j), z in np.ndenumerate(self.hit_freq):
             self.hit_freq_texts[i][j] = self.freq_ax.text(j, i, '{}'.format(z), ha='center', va='center')
 
         plt.show()
+        '''
 
     def create_belief_matrix(self, dimen):
         belief = [[1 / (dimen * dimen) for j in range(dimen)] for i in range(dimen)]
@@ -189,7 +197,7 @@ class DummyPlayer:
                     self.belief[i][j] /= sum
                     self.confidence_mat[i][j] = (self.belief[i][j] / sum) * (1 - fnr)
 
-    def next_move(self):
+    def next_move(self,current_cell):
 
         move_counter = 0
         for move_counter in count():
@@ -225,9 +233,12 @@ class DummyPlayer:
 
                                     maxm = self.confidence_mat[i][j]
                                     user_cell = (i, j)
+                                  #  print(user_cell)
+                                    
                 # self.k=self.k+1
 
             if(self.case==2):
+                maxi=0
                 # Unbiased Terrain Selection
                 if(self.rule==1):
                     # Belief Matrix
@@ -243,18 +254,32 @@ class DummyPlayer:
                         for j in range(self.dimen):
                             if self.confidence_mat[i][j] == y:
                                 user_cell = (i, j)
+                elif(self.rule==3):
+                    for i in range(self.dimen):
+                        for j in range(self.dimen):
+                            distance=math.sqrt((pow(current_cell[0]-i,2)+pow(current_cell[1]-j,2)))
+                            if((self.belief[i][j]*distance)>maxi):
+                                maxi=self.belief[i][j]
+                                user_cell= (i, j)
+                elif(self.rule==4):
+                    for i in range(self.dimen):
+                        for j in range(self.dimen):
+                            distance=math.sqrt((pow(current_cell[0]-i,2)+pow(current_cell[1]-j,2)))
+                            if((self.confidence_mat[i][j]*distance)>maxi):
+                                maxi=self.confidence_mat[i][j]
+                                user_cell= (i, j)                                 
 
             if self.prev_cell is not None:
                 self.map[self.prev_cell[0]][self.prev_cell[1]] -= self.marker
-
+            #print(user_cell)
             self.prev_cell = user_cell
             self.map[user_cell[0]][user_cell[1]] += self.marker
-
+            '''
             self.hit_freq[user_cell[0]][user_cell[1]] += 1
             hit_count = self.hit_freq[user_cell[0]][user_cell[1]]
             # self.freq_ax.text(user_cell[0], user_cell[1], '{}'.format(hit_count), ha='center', va='center')
             self.hit_freq_texts[user_cell[0]][user_cell[1]].set_text(str(hit_count))
-
+            '''
 
             move_counter += 1
             yield user_cell
@@ -262,21 +287,25 @@ class DummyPlayer:
 
 if __name__ == "__main__":
     # dimen = 3
-    iterations = 1
-    fileName = "results/profilerResults_" + time.strftime("%Y%m%d-%H%M%S") + ".csv"
+    iterations = 5
+    fileName = "D:/results/profilerResults_" + time.strftime("%Y%m%d-%H%M%S") + ".csv"
     f = open(fileName, "a", 1)
     f.write("Gridsize;IterationNo;Case;Rule;Searches\n")
-
+    
     for itr in range(1, iterations+1):
         # Iteration Loop
         for dimen in range(5, 11):
             game_master = GameMaster(dimen)
 
             for case in range(1, 3):
-                for rule in range(1, 3):
-
+                for rule in range(1, 5):
+                    if (case==1 and rule==3)or (case==1 and rule==4):
+                        break
+                    
+                  #  print(case,rule)
+                    current_cell=(0,0)
                     dummy_player = DummyPlayer(game_master.game_map, case, rule, itr)
-                    move_generator = dummy_player.next_move()
+                    move_generator = dummy_player.next_move(current_cell)
                     game_won = False
                     game_master.printMap()
                     dummy_player.print_mat(dummy_player.belief)
@@ -287,22 +316,30 @@ if __name__ == "__main__":
                     i = 0
 
                     while not game_won:
+                        print(game_won)
                         i += 1
+                        #print(move_generator)
                         user_cell = next(move_generator)
+                        
+                        #user_cell =dummy_player.next_move(current_cell)
+                       # print(user_cell)
                         game_won = game_master.search_cell(user_cell)
                         dummy_player.update_belief_matrix(user_cell)
+                        '''
                         print("\nMove - {}: {},{}\n".format(i,user_cell[0],user_cell[1]))
                         dummy_player.print_mat(dummy_player.belief)
                         dummy_player.terrain_plot.set_data(dummy_player.map)
                         dummy_player.belief_plot.set_data(dummy_player.belief)
                         dummy_player.freq_plot.set_data(dummy_player.hit_freq)
                         dummy_player.fig.canvas.draw()
-                        plt.pause(0.0001)
+                        '''
+                        #plt.pause(0.0001)
                         # time.sleep(0.1)
                     else:
                         game_master.game_map[game_master.target[0]][game_master.target[1]] -= dummy_player.marker
+                        '''
                         plt.close(dummy_player.fig)
-
+                        '''
                     print("Kudos you Won!!!\n{} cells Searched".format(i))
 
                     f.write("{0};{1};{2};{3};{4}\n".format(dimen, itr, case_str[case], rule_str[rule], i))
