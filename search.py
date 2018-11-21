@@ -53,8 +53,11 @@ class GameMaster:
 
     def create_random_target(self):
         # while True:
-        x = np.random.randint(0, len(self.game_map))
-        y = np.random.randint(0, len(self.game_map))
+        x=0
+        y=0
+        while(x==0 and y==0):
+            x = np.random.randint(0, len(self.game_map))
+            y = np.random.randint(0, len(self.game_map))
             # if self.game_map[x][y] == 3:
                 # break
         return (x, y)
@@ -346,14 +349,16 @@ class DummyPlayer:
                         for j in range(self.dimen):
                             distance=math.sqrt((pow(current_cell[0]-i,2)+pow(current_cell[1]-j,2)))
                             if int(distance) is not 0 and (self.belief[i][j]/distance)>maxi :
-                                    maxi=self.belief[i][j]
-                                    user_cell= (i, j)
+                                #maxi=self.belief[i][j]
+                                maxi=self.belief[i][j]/distance
+                                user_cell= (i, j)
                 elif(self.rule==4):
                     for i in range(self.dimen):
                         for j in range(self.dimen):
                             distance=math.sqrt((pow(current_cell[0]-i,2)+pow(current_cell[1]-j,2)))                            
                             if int(distance) is not 0 and (self.confidence_mat[i][j]/distance)>maxi :
-                                maxi=self.confidence_mat[i][j]
+                                maxi=self.confidence_mat[i][j]/distance
+                               # maxi=self.confidence_mat[i][j]
                                 user_cell= (i, j)                                
 
             if self.prev_cell is not None:
@@ -378,12 +383,12 @@ if __name__ == "__main__":
     moving_target = False
     visualize = False
 
-    iterations = 2
+    iterations = 5
     fileName = "D:/results/profilerResults_" + time.strftime("%Y%m%d-%H%M%S") + ".csv"
     f = open(fileName, "a", 1)
     f.write("Gridsize;IterationNo;Terrain;Case;Rule;Searches\n")
 
-    for dimen in range(3, 11):
+    for dimen in range(4, 11):
         for itr in range(1, iterations+1):
             # Iteration Loop
             game_master = GameMaster(dimen, moving_target, visualize)
